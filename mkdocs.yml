@@ -1,0 +1,5 @@
+site_name: repo-chunker
+theme:
+  name: readthedocs
+nav:
+  - Home: index.md

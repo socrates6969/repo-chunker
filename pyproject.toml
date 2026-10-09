@@ -1,0 +1,53 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "repo-chunker"
+version = "0.1.0"
+description = "AST-aware semantic code chunking for RAG."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Marius Carlsson" }]
+keywords = ["rag", "chunking", "code", "ast", "llm", "embeddings", "retrieval"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Topic :: Software Development :: Libraries",
+]
+dependencies = ["typer>=0.12"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11"]
+
+[project.scripts]
+repo-chunker = "repo_chunker.cli:run"
+
+[project.urls]
+Homepage = "https://github.com/socrates6969/repo-chunker"
+Issues = "https://github.com/socrates6969/repo-chunker/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/repo_chunker"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests", "benchmarks"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.10"
+disallow_untyped_defs = true
+no_implicit_optional = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = "typer"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
