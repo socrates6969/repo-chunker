@@ -25,6 +25,22 @@ class Chunk:
         result: dict[str, Any] = asdict(self)
         return result
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Chunk:
+        """Rebuild a Chunk from a to_dict() mapping (imports back to a tuple)."""
+        return cls(
+            path=data["path"],
+            language=data["language"],
+            kind=data["kind"],
+            name=data["name"],
+            start_line=data["start_line"],
+            end_line=data["end_line"],
+            text=data["text"],
+            parent=data.get("parent"),
+            imports=tuple(data.get("imports", ())),
+            metadata=dict(data.get("metadata", {})),
+        )
+
     @property
     def token_estimate(self) -> int:
         """Rough token count (~4 chars per token). Replace with a real tokenizer later."""
