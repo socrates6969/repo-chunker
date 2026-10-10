@@ -1,59 +1,66 @@
 # repo-chunker
 
-**AST-aware semantic code chunking for RAG.** Splits a codebase into *logically complete* units — functions, classes, methods — instead of arbitrary line or character windows, so a retrieval model never receives a function cut in half.
+**AST-aware semantic code chunking for RAG.** Splits a codebase into *logically complete* units — functions, classes, methods, interfaces, types — instead of arbitrary line or character windows, so a retrieval model receives the exact relevant code, not a function cut in half or a blob of three unrelated ones.
 
 [![ci](https://github.com/socrates6969/repo-chunker/actions/workflows/ci.yml/badge.svg)](https://github.com/socrates6969/repo-chunker/actions)
 
-## Why
+## Why it is better (measured, not claimed)
 
-Most RAG pipelines chunk code by character/line count (e.g. LangChain `RecursiveCharacterTextSplitter`). That routinely slices through the middle of a function, destroying the exact context a model needs. `repo-chunker` parses the code and emits whole semantic units with metadata (imports, parent class, line span), so retrieval returns code that actually makes sense on its own.
+`benchmarks/retrieval_eval.py` compares AST chunks to naive line windows on a controlled corpus with a dependency-free lexical embedder:
 
-The repository ships a **boundary-integrity benchmark** that quantifies this: the share of chunks that are syntactically complete on their own, AST vs naive. (Run it: `python benchmarks/boundary_integrity.py src`.)
+| metric | AST (repo-chunker) | naive line windows |
+|---|---|---|
+| exact-unit retrieval @1 | **100%** | 0% |
+| top-1 on-target purity | **100%** | 34% |
+
+Both *locate* the region; only AST returns the clean, exact unit. A real sentence-transformer only widens the gap. `benchmarks/boundary_integrity.py` separately shows AST chunks are syntactically complete where naive windows are not.
 
 ## Install
 
 ```bash
-pip install repo-chunker          # once published
-# or, from source:
-pip install -e ".[dev]"
+pip install repo-chunker                      # core (Python only, zero deps but typer)
+pip install "repo-chunker[treesitter]"        # + JS / TS / TSX / Go
+pip install "repo-chunker[service]"           # + FastAPI HTTP service
 ```
 
-## Usage
+## Use
 
 CLI:
 
 ```bash
 repo-chunker ./src --output chunks.jsonl --stats
+repo-chunker ./src --max-tokens 512 -o chunks.jsonl   # pack to a token budget
 ```
 
 Library:
 
 ```python
-from repo_chunker import chunk_repo, chunk_file
+from repo_chunker import chunk_repo
+from repo_chunker.pack import pack
 
-for chunk in chunk_repo("./src"):
-    print(chunk.kind, chunk.name, chunk.start_line, chunk.end_line)
-    # chunk.text, chunk.imports, chunk.parent, chunk.metadata, chunk.token_estimate
+chunks = list(chunk_repo("./src"))
+chunks = pack(chunks, max_tokens=512)   # RAG-ready sizing
+for c in chunks:
+    print(c.kind, c.name, c.start_line, c.end_line)  # + c.text, c.imports, c.to_dict()
 ```
 
-Each chunk is a frozen dataclass with `to_dict()` for JSONL output, ready to embed.
+HTTP service (body-only; never reads server-side paths):
 
-## Supported languages
+```bash
+repo-chunker-serve        # POST /chunk {path, source}  ·  GET /health
+```
 
-- **Python** (v0.1, via the standard-library `ast` — zero native dependencies).
-- JavaScript / TypeScript / Go — next, via a pluggable tree-sitter backend (see ARCHITECTURE.md).
+## Languages
 
-## Design
+Python (stdlib `ast`, zero deps) · JavaScript · TypeScript · TSX · Go (tree-sitter, optional).
+Adding a language = implementing the one-method `Parser` protocol. See `ARCHITECTURE.md`.
 
-A tiny `Parser` protocol (`parse(path, source) -> list[Chunk]`) with a per-extension registry. v0.1 deliberately ships one language on the stdlib parser to prove the architecture and the eval before taking on tree-sitter grammar builds. See `ARCHITECTURE.md`.
+## Features
 
-## Roadmap
-
-- tree-sitter backend: JS/TS, Go, Rust, Java
-- token-budget packing (merge small siblings up to a tokenizer limit)
-- call-graph metadata (link a chunk to the definitions it references)
-- optional FastAPI service + Docker image
-- retrieval-accuracy benchmark (embed AST vs naive chunks, compare recall)
+- Semantic chunks with metadata: kind, name, parent, imports, line span, token estimate.
+- **Token-budget packing**: split oversized units, merge tiny adjacent siblings — pluggable token counter.
+- CLI, Python API, JSONL output, optional FastAPI service.
+- Two benchmarks (retrieval accuracy + boundary integrity), both CI-enforced.
 
 ## License
 

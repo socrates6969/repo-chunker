@@ -8,6 +8,7 @@ from typing import Annotated
 import typer
 
 from .chunker import chunk_file, chunk_repo, supported_extensions
+from .pack import pack
 
 
 def main(
@@ -15,10 +16,15 @@ def main(
     output: Annotated[
         str, typer.Option("--output", "-o", help="Output JSONL path.")
     ] = "chunks.jsonl",
+    max_tokens: Annotated[
+        int, typer.Option("--max-tokens", help="If > 0, pack chunks up to this token budget.")
+    ] = 0,
     stats: Annotated[bool, typer.Option("--stats", help="Print a summary.")] = False,
 ) -> None:
     """Chunk a file or repository into semantic units and write JSONL."""
     chunks = chunk_file(path) if os.path.isfile(path) else list(chunk_repo(path))
+    if max_tokens > 0:
+        chunks = pack(chunks, max_tokens)
     with open(output, "w", encoding="utf-8") as handle:
         for chunk in chunks:
             handle.write(json.dumps(chunk.to_dict()) + "\n")

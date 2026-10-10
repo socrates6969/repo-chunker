@@ -1,14 +1,21 @@
 # Changelog
 
-## 0.3.0 (unreleased)
-- Retrieval-accuracy benchmark (`benchmarks/retrieval_eval.py`): embeds AST chunks
-  vs naive line-window chunks with a dependency-free lexical TF-IDF proxy and reports
-  recall@1/3/5 and MRR. CI-enforced by a test asserting AST >= naive.
+## 1.0.0
+- Token-budget packing (`repo_chunker.pack.pack`): split oversized chunks and merge
+  tiny adjacent same-file chunks to a token budget; pluggable token counter.
+- CLI `--max-tokens` flag applies packing to output.
+- GitHub release workflow (build sdist/wheel on tag).
+- First stable API: `chunk_source`, `chunk_file`, `chunk_repo`, `pack`, `Chunk`, `Parser`.
+
+## 0.4.0
+- Optional FastAPI service (`repo-chunker-serve`): `POST /chunk`, `GET /health`.
+  Body-only by design (no server-side file reads).
+
+## 0.3.0
+- Retrieval-accuracy benchmark: exact-unit recall and on-target precision, AST vs naive.
 
 ## 0.2.0
-- Tree-sitter backend: JavaScript, TypeScript, TSX, Go, behind the Parser protocol.
-  Optional `treesitter` extra; degrades to Python-only if not installed.
+- Tree-sitter backend: JavaScript, TypeScript, TSX, Go (optional `treesitter` extra).
 
 ## 0.1.0
-- Initial release: Python AST chunking (functions, classes, methods) with
-  import/parent metadata. CLI, library API, JSONL output, boundary-integrity benchmark.
+- Initial release: Python AST chunking, CLI, JSONL, boundary-integrity benchmark.
