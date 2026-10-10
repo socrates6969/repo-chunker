@@ -10,3 +10,5 @@ build/
 .pytest_cache/
 chunks.jsonl
 .DS_Store
+.claude-flow/
+.claude/
