@@ -4,7 +4,10 @@ Optional: requires the `treesitter` extra (tree-sitter + tree-sitter-language-pa
 If the grammars are not installed, importing this module raises ImportError and the
 registry keeps Python-only support — the core stays dependency-free.
 
-Each language is described by a LangSpec and chunked by one generic walker.
+Each language is described by a LangSpec and chunked by one generic, container-aware
+walker. Containers (namespaces, modules, declaration lists) are recursed into so that
+nested declarations are found at any depth; classes are not recursed into, because
+their methods are handled explicitly against the class.
 """
 from __future__ import annotations
 
@@ -26,6 +29,22 @@ _TS_OTHER = {
     "enum_declaration": "enum",
 }
 
+# Node types that carry an entity's name, tried when there is no explicit `name` field.
+_NAME_TYPES = frozenset({
+    "identifier", "type_identifier", "property_identifier", "field_identifier",
+    "simple_identifier", "name", "constant", "scoped_identifier",
+})
+# C/C++ declarator wrappers to descend through to reach the real name.
+_DECLARATOR_TYPES = frozenset({
+    "function_declarator", "pointer_declarator", "reference_declarator",
+    "init_declarator", "parenthesized_declarator", "array_declarator",
+})
+# Bodies that hold a class's members, when there is no explicit `body` field.
+_BODY_TYPES = frozenset({
+    "field_declaration_list", "declaration_list", "class_body",
+    "body_statement", "block", "enum_variant_list",
+})
+
 
 @dataclass(frozen=True)
 class LangSpec:
@@ -39,6 +58,12 @@ class LangSpec:
     method_types: frozenset[str]
     other: dict[str, str] = field(default_factory=dict)
     import_types: frozenset[str] = field(default_factory=frozenset)
+    # Node types to recurse into (namespaces, modules, declaration lists).
+    container_types: frozenset[str] = field(default_factory=frozenset)
+    # Optional per-node-type override for a class-like node's chunk kind.
+    class_kind: dict[str, str] = field(default_factory=dict)
+    # Optional per-node-type override for a member (method-body) chunk kind.
+    member_kind: dict[str, str] = field(default_factory=dict)
 
 
 SPECS: tuple[LangSpec, ...] = (
@@ -105,6 +130,91 @@ SPECS: tuple[LangSpec, ...] = (
         method_types=frozenset({"method_declaration", "constructor_declaration"}),
         import_types=frozenset({"import_declaration"}),
     ),
+    # --- v2.0 languages ---------------------------------------------------
+    LangSpec(
+        language="c",
+        grammar="c",
+        extensions=(".c", ".h"),
+        func_types=frozenset({"function_definition"}),
+        class_types=frozenset(),
+        method_types=frozenset(),
+        other={
+            "struct_specifier": "struct",
+            "enum_specifier": "enum",
+            "union_specifier": "union",
+            "type_definition": "type",
+        },
+        import_types=frozenset({"preproc_include"}),
+    ),
+    LangSpec(
+        language="cpp",
+        grammar="cpp",
+        extensions=(".cpp", ".cc", ".cxx", ".hpp", ".hh"),
+        func_types=frozenset({"function_definition"}),
+        class_types=frozenset({"class_specifier", "struct_specifier"}),
+        method_types=frozenset({"function_definition"}),
+        other={"enum_specifier": "enum"},
+        import_types=frozenset({"preproc_include"}),
+        container_types=frozenset({
+            "namespace_definition", "declaration_list", "linkage_specification",
+        }),
+        class_kind={"class_specifier": "class", "struct_specifier": "struct"},
+    ),
+    LangSpec(
+        language="csharp",
+        grammar="csharp",
+        extensions=(".cs",),
+        func_types=frozenset(),
+        class_types=frozenset({
+            "class_declaration", "interface_declaration", "struct_declaration",
+            "enum_declaration", "record_declaration",
+        }),
+        method_types=frozenset({
+            "method_declaration", "constructor_declaration", "property_declaration",
+        }),
+        import_types=frozenset({"using_directive"}),
+        container_types=frozenset({
+            "namespace_declaration", "file_scoped_namespace_declaration", "declaration_list",
+        }),
+        class_kind={
+            "interface_declaration": "interface", "struct_declaration": "struct",
+            "enum_declaration": "enum", "record_declaration": "record",
+        },
+        member_kind={"property_declaration": "property"},
+    ),
+    LangSpec(
+        language="ruby",
+        grammar="ruby",
+        extensions=(".rb",),
+        func_types=frozenset({"method", "singleton_method"}),
+        class_types=frozenset({"class"}),
+        method_types=frozenset({"method", "singleton_method"}),
+        container_types=frozenset({"module", "body_statement"}),
+    ),
+    LangSpec(
+        language="php",
+        grammar="php",
+        extensions=(".php",),
+        func_types=frozenset({"function_definition"}),
+        class_types=frozenset({
+            "class_declaration", "interface_declaration", "trait_declaration",
+        }),
+        method_types=frozenset({"method_declaration"}),
+        import_types=frozenset({"namespace_use_declaration"}),
+        container_types=frozenset({"namespace_definition", "declaration_list"}),
+        class_kind={
+            "interface_declaration": "interface", "trait_declaration": "trait",
+        },
+    ),
+    LangSpec(
+        language="kotlin",
+        grammar="kotlin",
+        extensions=(".kt", ".kts"),
+        func_types=frozenset({"function_declaration"}),
+        class_types=frozenset({"class_declaration"}),
+        method_types=frozenset({"function_declaration"}),
+        import_types=frozenset({"import_list"}),
+    ),
 )
 
 
@@ -116,8 +226,13 @@ def _name(node: Any) -> str | None:
     named = node.child_by_field_name("name")
     if named is not None:
         return _text(named)
+    decl = node.child_by_field_name("declarator")
+    while decl is not None and decl.type in _DECLARATOR_TYPES:
+        decl = decl.child_by_field_name("declarator")
+    if decl is not None and decl.type in _NAME_TYPES:
+        return _text(decl)
     for child in node.named_children:
-        if child.type in ("identifier", "type_identifier", "property_identifier"):
+        if child.type in _NAME_TYPES:
             return _text(child)
     return None
 
@@ -140,30 +255,53 @@ class TreeSitterParser:
         )
         chunks: list[Chunk] = []
         for node in root.named_children:
-            self._emit(node, imports, chunks)
+            self._walk(node, imports, chunks)
         return chunks
 
-    def _emit(self, node: Any, imports: tuple[str, ...], out: list[Chunk]) -> None:
+    def _walk(self, node: Any, imports: tuple[str, ...], out: list[Chunk]) -> None:
         spec = self._spec
         node_type = node.type
-        if node_type in spec.func_types:
+        if node_type in spec.class_types:
+            self._emit_class(node, imports, out)
+        elif node_type in spec.func_types:
             out.append(self._chunk("function", node, _name(node), imports, None))
-        elif node_type in spec.class_types:
-            name = _name(node)
-            out.append(self._chunk("class", node, name, imports, None))
-            body = node.child_by_field_name("body")
-            if body is not None:
-                for sub in body.named_children:
-                    if sub.type in spec.method_types:
-                        out.append(self._chunk("method", sub, _name(sub), imports, name))
         elif node_type in spec.other:
-            kind = spec.other[node_type]
-            type_specs = [c for c in node.named_children if c.type == "type_spec"]
-            if type_specs:
-                for spec_node in type_specs:
-                    out.append(self._chunk("type", spec_node, _name(spec_node), imports, None))
-            else:
-                out.append(self._chunk(kind, node, _name(node), imports, None))
+            self._emit_other(node, imports, out)
+        elif node_type in spec.container_types:
+            for child in node.named_children:
+                self._walk(child, imports, out)
+
+    def _emit_class(self, node: Any, imports: tuple[str, ...], out: list[Chunk]) -> None:
+        spec = self._spec
+        name = _name(node)
+        kind = spec.class_kind.get(node.type, "class")
+        out.append(self._chunk(kind, node, name, imports, None))
+        body = self._body(node)
+        if body is not None:
+            for sub in body.named_children:
+                if sub.type in spec.method_types:
+                    member = spec.member_kind.get(sub.type, "method")
+                    out.append(self._chunk(member, sub, _name(sub), imports, name))
+
+    def _emit_other(self, node: Any, imports: tuple[str, ...], out: list[Chunk]) -> None:
+        spec = self._spec
+        kind = spec.other[node.type]
+        type_specs = [c for c in node.named_children if c.type == "type_spec"]
+        if type_specs:
+            for spec_node in type_specs:
+                out.append(self._chunk("type", spec_node, _name(spec_node), imports, None))
+        else:
+            out.append(self._chunk(kind, node, _name(node), imports, None))
+
+    @staticmethod
+    def _body(node: Any) -> Any:
+        body = node.child_by_field_name("body")
+        if body is not None:
+            return body
+        for child in node.named_children:
+            if child.type in _BODY_TYPES:
+                return child
+        return None
 
     def _chunk(
         self,
