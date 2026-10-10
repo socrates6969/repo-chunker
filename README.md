@@ -1,6 +1,6 @@
 # repo-chunker
 
-**AST-aware semantic code chunking for RAG.** Splits a codebase into *logically complete* units — functions, classes, methods, interfaces, types — instead of arbitrary line or character windows, so a retrieval model receives the exact relevant code, not a function cut in half or a blob of three unrelated ones.
+**AST-aware semantic code chunking for RAG.** Splits a codebase into *logically complete* units â€” functions, classes, methods, interfaces, types â€” instead of arbitrary line or character windows, so a retrieval model receives the exact relevant code, not a function cut in half or a blob of three unrelated ones.
 
 [![ci](https://github.com/socrates6969/repo-chunker/actions/workflows/ci.yml/badge.svg)](https://github.com/socrates6969/repo-chunker/actions)
 
@@ -47,18 +47,18 @@ for c in chunks:
 HTTP service (body-only; never reads server-side paths):
 
 ```bash
-repo-chunker-serve        # POST /chunk {path, source}  ·  GET /health
+repo-chunker-serve        # POST /chunk {path, source}  Â·  GET /health
 ```
 
 ## Languages
 
-Python (stdlib `ast`, zero deps) · JavaScript · TypeScript · TSX · Go (tree-sitter, optional).
+Python (stdlib `ast`, zero deps) Â· JavaScript Â· TypeScript Â· TSX Â· Go (tree-sitter, optional).
 Adding a language = implementing the one-method `Parser` protocol. See `ARCHITECTURE.md`.
 
 ## Features
 
 - Semantic chunks with metadata: kind, name, parent, imports, line span, token estimate.
-- **Token-budget packing**: split oversized units, merge tiny adjacent siblings — pluggable token counter.
+- **Token-budget packing**: split oversized units, merge tiny adjacent siblings â€” pluggable token counter.
 - CLI, Python API, JSONL output, optional FastAPI service.
 - Two benchmarks (retrieval accuracy + boundary integrity), both CI-enforced.
 

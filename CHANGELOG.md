@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.1.0
+- Added Rust and Java tree-sitter parsers (7 languages total). Added LESSONS.md retrospective.
+
 ## 1.0.0
 - Token-budget packing (`repo_chunker.pack.pack`): split oversized chunks and merge
   tiny adjacent same-file chunks to a token budget; pluggable token counter.

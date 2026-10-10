@@ -2,7 +2,7 @@
 
 Optional: requires the `treesitter` extra (tree-sitter + tree-sitter-language-pack).
 If the grammars are not installed, importing this module raises ImportError and the
-registry keeps Python-only support â€” the core stays dependency-free.
+registry keeps Python-only support — the core stays dependency-free.
 
 Each language is described by a LangSpec and chunked by one generic walker.
 """
@@ -79,6 +79,30 @@ SPECS: tuple[LangSpec, ...] = (
         class_types=frozenset(),
         method_types=frozenset(),
         other={"method_declaration": "method", "type_declaration": "type"},
+        import_types=frozenset({"import_declaration"}),
+    ),
+    LangSpec(
+        language="rust",
+        grammar="rust",
+        extensions=(".rs",),
+        func_types=frozenset({"function_item"}),
+        class_types=frozenset({"impl_item"}),
+        method_types=frozenset({"function_item"}),
+        other={"struct_item": "struct", "enum_item": "enum", "trait_item": "trait"},
+        import_types=frozenset({"use_declaration"}),
+    ),
+    LangSpec(
+        language="java",
+        grammar="java",
+        extensions=(".java",),
+        func_types=frozenset(),
+        class_types=frozenset({
+            "class_declaration",
+            "interface_declaration",
+            "enum_declaration",
+            "record_declaration",
+        }),
+        method_types=frozenset({"method_declaration", "constructor_declaration"}),
         import_types=frozenset({"import_declaration"}),
     ),
 )
@@ -160,22 +184,6 @@ class TreeSitterParser:
             parent=parent,
             imports=imports,
         )
-
-    def parse_path(self, path: str, source: str) -> list[Chunk]:
-        return [
-            Chunk(
-                path=path,
-                language=c.language,
-                kind=c.kind,
-                name=c.name,
-                start_line=c.start_line,
-                end_line=c.end_line,
-                text=c.text,
-                parent=c.parent,
-                imports=c.imports,
-            )
-            for c in self.parse(path, source)
-        ]
 
 
 def register_tree_sitter(register: Callable[[Parser], None]) -> None:
