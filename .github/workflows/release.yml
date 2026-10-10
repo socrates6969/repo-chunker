@@ -2,6 +2,7 @@ name: release
 on:
   push:
     tags: ["v*"]
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -16,5 +17,16 @@ jobs:
         with:
           name: dist
           path: dist/*
-      # To publish to PyPI, add a pypa/gh-action-pypi-publish step here with a
-      # configured Trusted Publisher (no long-lived token needed).
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write   # OIDC token for PyPI Trusted Publishing; no API token needed
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
