@@ -5,6 +5,7 @@ import os
 from collections.abc import Iterator
 
 from .base import Parser
+from .markdown_parser import MarkdownParser
 from .models import Chunk
 from .python_parser import PythonParser
 
@@ -23,6 +24,7 @@ def register(parser: Parser) -> None:
 
 
 register(PythonParser())
+register(MarkdownParser())
 
 # Optional multi-language support via tree-sitter. Degrades gracefully: if the
 # `treesitter` extra is not installed, the import fails and only Python is supported.
