@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "repo-chunker"
-version = "0.2.0"
+version = "0.3.0"
 description = "AST-aware semantic code chunking for RAG."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -50,5 +50,5 @@ module = ["typer", "tree_sitter_language_pack"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 testpaths = ["tests"]
