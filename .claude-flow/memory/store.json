@@ -1,0 +1,23 @@
+{
+  "entries": {
+    "cmd-1791560120153": {
+      "key": "cmd-1791560120153",
+      "value": "{\"command\":\"P=/c/Users/mariu/projects/repo-chunker\",\"exitCode\":0,\"success\":true}",
+      "namespace": "commands",
+      "storedAt": "2026-10-09T15:35:20.153Z",
+      "lastAccessed": "2026-10-09T15:35:20.153Z",
+      "accessCount": 0,
+      "expiresAt": "2026-11-08T15:35:20.153Z"
+    },
+    "cmd-1791594361869": {
+      "key": "cmd-1791594361869",
+      "value": "{\"command\":\"C=/c/Users/mariu/.claude\",\"exitCode\":0,\"success\":true}",
+      "namespace": "commands",
+      "storedAt": "2026-10-10T01:06:01.869Z",
+      "lastAccessed": "2026-10-10T01:06:01.869Z",
+      "accessCount": 0,
+      "expiresAt": "2026-11-09T01:06:01.869Z"
+    }
+  },
+  "version": "3.0.0"
+}

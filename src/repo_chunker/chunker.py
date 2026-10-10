@@ -24,6 +24,15 @@ def register(parser: Parser) -> None:
 
 register(PythonParser())
 
+# Optional multi-language support via tree-sitter. Degrades gracefully: if the
+# `treesitter` extra is not installed, the import fails and only Python is supported.
+try:
+    from .tree_sitter_parser import register_tree_sitter
+except ImportError:
+    pass
+else:
+    register_tree_sitter(register)
+
 
 def supported_extensions() -> tuple[str, ...]:
     """Return the file extensions currently supported."""
@@ -36,7 +45,24 @@ def chunk_source(path: str, source: str) -> list[Chunk]:
     parser = _PARSERS.get(ext)
     if parser is None:
         return []
-    return parser.parse(path, source)
+    chunks = parser.parse(path, source)
+    # Tree-sitter chunks carry no path; stamp it so output is consistent.
+    return [c if c.path else _with_path(c, path) for c in chunks]
+
+
+def _with_path(chunk: Chunk, path: str) -> Chunk:
+    return Chunk(
+        path=path,
+        language=chunk.language,
+        kind=chunk.kind,
+        name=chunk.name,
+        start_line=chunk.start_line,
+        end_line=chunk.end_line,
+        text=chunk.text,
+        parent=chunk.parent,
+        imports=chunk.imports,
+        metadata=chunk.metadata,
+    )
 
 
 def chunk_file(path: str) -> list[Chunk]:
