@@ -7,7 +7,7 @@ from .chunker import chunk_file, chunk_repo, chunk_source, register, supported_e
 from .context import add_parent_context
 from .models import Chunk
 
-__version__ = "0.1.0"
+__version__ = "2.0.0"
 __all__ = [
     "ChunkCache",
     "add_parent_context",

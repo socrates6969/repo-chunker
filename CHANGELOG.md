@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.0.0
+- **6 new languages** (13 total): C, C++, C#, Ruby, PHP, Kotlin. The tree-sitter
+  walker is now container-aware (recurses into namespaces, modules, and declaration
+  lists) so nested declarations are found at any depth; new struct/interface/trait/
+  enum/property chunk kinds.
+- **Markdown chunker** (zero dependencies): header-aware sectioning with ancestor-
+  heading parent tracking; code-fence aware.
+- **Parent-context enrichment** (`add_parent_context`): prefix child chunks with the
+  parent's signature so methods read as self-contained passages for embedding.
+- **Incremental cache** (`ChunkCache`): mtime+size keyed; re-chunking skips unchanged
+  files. `Chunk.from_dict` round-trips `to_dict()`.
+- **CLI**: `--format json|jsonl`, stdin (`-`), stdout (`-o -`), `--context`.
+- Release workflow publishes to PyPI via Trusted Publishing (OIDC) on tag.
+
 ## 1.1.0
 - Added Rust and Java tree-sitter parsers (7 languages total). Added LESSONS.md retrospective.
 
